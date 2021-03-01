@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Twitter DM notification serverless App"
+
+Parameters:
+  SharedBucketName:
+    Type: String
+    Description: Shared bucket name containing the deployable artifact
+  TwitterDMNotifLambdaArtifactS3Key:
+    Type: String
+    Description: The S3 key of the Template Process Lambda artifact
+    Default: 'twitter-dm-notif-lambda.zip'
+  #TwitterDMNotifLambdaArtifactS3Version:
+  #  Type: String
+  #  Description: The S3 version of the Template Process Lambda artifact
+  TwitterDMNotifLambdaLayerArtifactS3Key:
+    Type: String
+    Description: The S3 key of the Template Process Lambda layer artifact
+    Default: 'twitter-dm-notif-lambda-layer.zip'
+  #TwitterDMNotifLambdaLayerArtifactS3Version:
+  #  Type: String
+  #  Description: The S3 version of the Template Process Lambda layer artifact
+  LogLevel:
+    Type: String
+    Description: The log level that the API should log at
+    AllowedValues: ["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR"]
+    Default: 'INFO'
+ 
+Resources:
+  TwitterDMNotifLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: TwitterDMNotifLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: TwitterDMNotif-policy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: ForS3BucketAccess
+              Effect: Allow
+              Action:
+                - s3:CreateBucket
+                - s3:ListBucket
+                - s3:ListObject*
+                - S3:GetObject
+                - S3:PutObject
+                - S3:DeleteObject
+                - S3:PutObjectACL
+                - s3:PutEncryptionConfiguration
+                - s3:PutObjectTagging
+                - s3:PutObjectVersionTagging
+              Resource:
+                - !Sub 'arn:aws:s3:::${SharedBucketName}'
+                - !Sub 'arn:aws:s3:::${SharedBucketName}/*'
+            - Sid: DynamoDBReadWritePolicy
+              Effect: Allow
+              Action:
+                - dynamodb:*
+              Resource:
+                - "*"
+            - Sid: ForCloudWatchAccess
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                - logs:DescribeLogStreams
+                - logs:PutMetricData
+              Resource: 'arn:aws:logs:*:*:*'
+            - Sid: LambdaPerms
+              Effect: Allow
+              Action:
+                - lambda:GetFunction
+                - lambda:GetFunctionConfiguration
+                - lambda:InvokeFunction
+              Resource:
+                - "*"
+            - Sid: CustomCWMetrics
+              Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource:
+                - "*"
+            - Sid: AccessToSSM
+              Effect: Allow
+              Action:
+                - ssm:GetParameter*
+              Resource:
+                - "*"
+            - Sid: AccessToSES
+              Effect: Allow
+              Action:
+                - ses:*
+              Resource:
+                - "*"
+  TwitterDMNotifDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "Twitter-DM-Notif"
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+      BillingMode: PAY_PER_REQUEST
+
+  DynamoScalingRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "application-autoscaling.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "dynamodb:DescribeTable"
+                  - "dynamodb:UpdateTable"
+                  - "cloudwatch:PutMetricAlarm"
+                  - "cloudwatch:DescribeAlarms"
+                  - "cloudwatch:GetMetricStatistics"
+                  - "cloudwatch:SetAlarmState"
+                  - "cloudwatch:DeleteAlarms"
+                Resource: "*"
+
+  TwitterDMNotifLambdaLayer:
+    Type: "AWS::Lambda::LayerVersion"
+    Properties:
+      CompatibleRuntimes: 
+        - python3.8
+      Content: 
+        S3Bucket: !Ref SharedBucketName
+        S3Key: !Ref TwitterDMNotifLambdaLayerArtifactS3Key
+      Description: Lambda Layer for twitter DM notification
+      LayerName: TwitterDMNotifLambdaLayer
+      LicenseInfo: MIT
+  TwitterDMNotifLayerPermission:
+    Type: "AWS::Lambda::LayerVersionPermission"
+    Properties:
+      Action: lambda:GetLayerVersion
+      LayerVersionArn: !Ref TwitterDMNotifLambdaLayer
+      Principal: !Ref AWS::AccountId
+  TwitterDMNotifLambda:
+    Type: "AWS::Lambda::Function"
+    DependsOn:
+      - TwitterDMNotifLambdaRole
+      - TwitterDMNotifLambdaLayer
+    Properties:
+      Code:
+        S3Bucket: !Ref SharedBucketName
+        S3Key: !Ref TwitterDMNotifLambdaArtifactS3Key
+      Description: "Lambda to process twitter DM and send notification"
+      FunctionName:  TwitterDMNotifLambda
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.8
+      Timeout: 900
+      MemorySize: 256
+      Role: !GetAtt TwitterDMNotifLambdaRole.Arn
+      Layers:
+        - !Ref TwitterDMNotifLambdaLayer
+      Environment:
+        Variables:
+          TABLENAME_OVERRIDE: Twitter-DM-Notif
+          LOG_LEVEL: !Ref LogLevel
+  TwitterDMNotifScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: TwitterDMNotifSchedule
+      Description: "Scheduled rule to poll Twitter DM and send notification if new"
+      ScheduleExpression: "rate(5 minutes)"
+      State: "ENABLED"
+      Targets:
+        -
+          Arn: !GetAtt TwitterDMNotifLambda.Arn
+          Id: "TwitterDMNotifLambda"
+  PermissionForEventsToInvokeTwitterDMNotifLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TwitterDMNotifLambda
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt TwitterDMNotifScheduleRule.Arn
