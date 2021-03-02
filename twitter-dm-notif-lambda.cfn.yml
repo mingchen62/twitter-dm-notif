@@ -9,16 +9,16 @@ Parameters:
     Type: String
     Description: The S3 key of the Template Process Lambda artifact
     Default: 'twitter-dm-notif-lambda.zip'
-  #TwitterDMNotifLambdaArtifactS3Version:
-  #  Type: String
-  #  Description: The S3 version of the Template Process Lambda artifact
+  TwitterDMNotifLambdaArtifactS3Version:
+    Type: String
+    Description: The S3 version of the Template Process Lambda artifact
   TwitterDMNotifLambdaLayerArtifactS3Key:
     Type: String
     Description: The S3 key of the Template Process Lambda layer artifact
     Default: 'twitter-dm-notif-lambda-layer.zip'
-  #TwitterDMNotifLambdaLayerArtifactS3Version:
-  #  Type: String
-  #  Description: The S3 version of the Template Process Lambda layer artifact
+  TwitterDMNotifLambdaLayerArtifactS3Version:
+    Type: String
+    Description: The S3 version of the Template Process Lambda layer artifact
   LogLevel:
     Type: String
     Description: The log level that the API should log at
@@ -151,6 +151,7 @@ Resources:
       Content: 
         S3Bucket: !Ref SharedBucketName
         S3Key: !Ref TwitterDMNotifLambdaLayerArtifactS3Key
+        S3ObjectVersion: !Ref TwitterDMNotifLambdaLayerArtifactS3Version
       Description: Lambda Layer for twitter DM notification
       LayerName: TwitterDMNotifLambdaLayer
       LicenseInfo: MIT
@@ -169,6 +170,7 @@ Resources:
       Code:
         S3Bucket: !Ref SharedBucketName
         S3Key: !Ref TwitterDMNotifLambdaArtifactS3Key
+        S3ObjectVersion: !Ref TwitterDMNotifLambdaArtifactS3Version
       Description: "Lambda to process twitter DM and send notification"
       FunctionName:  TwitterDMNotifLambda
       Handler: lambda_function.lambda_handler
@@ -188,7 +190,7 @@ Resources:
       Name: TwitterDMNotifSchedule
       Description: "Scheduled rule to poll Twitter DM and send notification if new"
       ScheduleExpression: "rate(5 minutes)"
-      State: "ENABLED"
+      State: "DISABLED"
       Targets:
         -
           Arn: !GetAtt TwitterDMNotifLambda.Arn
