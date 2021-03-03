@@ -27,6 +27,7 @@
 ## Configuration:
 
    * Install twitter key/secrets in AWS SSM
+   
    You can use this command to set those parameters. For example,
 
    $ aws ssm put-parameter  --name "/third-party/twitter/consumer-key" --type SecureString --value <Your twitter app key>
@@ -48,8 +49,11 @@
  $ 	aws ssm get-parameter --name "/third-party/twitter/access-token-secret" --with-decryption
 
  * Configure email address in AWS SES
+ 
  https://docs.aws.amazon.com/ses/latest/DeveloperGuide/send-email-set-up.html
+ 
  Once sender/reciepent email addresses are verified in AWS SES, you can specify them in cloud formation:
+ 
  RECEPIENTEMAILADDRESS, SENDEMAILADDRESS
 
 ## Package and deploy
@@ -58,6 +62,7 @@
  $ ./package_deploy.sh <your s3 bucket>
 
  * deploy cloud formation stack.
+ * 
  You can deploy vis cloud formation console or use the follwoing command:
 
  $ aws cloudformation deploy --template ./twitter-dm-notif-lambda.cfn.yml --stack-name twitter-dm-notif-stack \
