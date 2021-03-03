@@ -6,6 +6,7 @@ from config import SENDER, RECIPIENT, CHARSET
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
 # Create a new SES resource
 client = boto3.client('ses')
 

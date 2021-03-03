@@ -19,6 +19,14 @@ Parameters:
   TwitterDMNotifLambdaLayerArtifactS3Version:
     Type: String
     Description: The S3 version of the Template Process Lambda layer artifact
+  SENDEMAILADDRESS:
+    Type: String  
+    Description: Sender email address for email notification
+    Default: 'NECCA <necaa.2020@gmail.com>'
+  RECEPIENTEMAILADDRESS:
+    Type: String  
+    Description: Recepient email address for email notification
+    Default: 'ming.chen@gmail.com'
   LogLevel:
     Type: String
     Description: The log level that the API should log at
@@ -184,6 +192,8 @@ Resources:
         Variables:
           TABLENAME_OVERRIDE: Twitter-DM-Notif
           LOG_LEVEL: !Ref LogLevel
+          SEND_EMAIL_ADDRESS: !Ref SENDEMAILADDRESS
+          RECEPIENT_EMAIL_ADDRESS: !Ref RECEPIENTEMAILADDRESS
   TwitterDMNotifScheduleRule:
     Type: AWS::Events::Rule
     Properties:

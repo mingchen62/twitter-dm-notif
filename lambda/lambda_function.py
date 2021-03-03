@@ -39,7 +39,7 @@ def lambda_handler(event, context):
     body_html = f"""<html>
     <head></head>
     <body>
-      <h1>DM retrieved</h1>
+      <h1>Aloha</h1>
       <p>
       {html_table}
       </p>

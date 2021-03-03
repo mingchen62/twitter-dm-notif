@@ -6,10 +6,7 @@ import logging
 
 from config import (
     ISO_FORMAT, 
-    consumer_key, 
-    consumer_secret, 
-    access_token, 
-    access_token_secret,
+    twitter_keys, 
     ID_COLUMN,
     CREATED_TIME_COLUMN,
     FROM_COLUMN, 
@@ -18,25 +15,22 @@ from config import (
     SENDER_ID_COLUMN,
     RECIPIENT_ID_COLUMN,
     STATUS_NEW_COLUMN,
-    HEADERS
+    HEADERS,
+    TZ
 )
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 try:
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
+    auth = tweepy.OAuthHandler(twitter_keys['consumer-key'], twitter_keys['consumer-secret'])
+    auth.set_access_token(twitter_keys['access-token'], twitter_keys['access-token-secret'])
     api = tweepy.API(auth)
-    # If the authentication was successful, you should
-    # see the name of the account print out
-    logger.info("authentication succ "+api.me().name)
+    # If the authentication was successful, the name of the account will be print out
+    logger.info("twitter authentication succ "+api.me().name)
 except Exception as e:
-    logger.error("authentication error", exc_info=e)
+    logger.error("twitter authentication error", exc_info=e)
     exit(-1)
-
-# get time in tz
-tz = pytz.timezone('America/New_York')
 
 def lookup_user(user_id):
     res = []
@@ -58,7 +52,7 @@ def retrieve_dm():
             msg_data = {}
             msg_data[ID_COLUMN] = direct_message._json['id']
 
-            dt = datetime.fromtimestamp(int(direct_message._json['created_timestamp'])/1000, tz)
+            dt = datetime.fromtimestamp(int(direct_message._json['created_timestamp'])/1000, TZ)
             msg_data[CREATED_TIME_COLUMN] = dt.strftime(ISO_FORMAT)
 
             msg_data[SENDER_ID_COLUMN] = direct_message._json['message_create']['sender_id']
